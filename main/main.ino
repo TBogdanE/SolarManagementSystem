@@ -53,7 +53,6 @@ public:
 };
 
 Data systemData;
-int i = 1;
 
 void setup()
 {
@@ -80,25 +79,29 @@ void loop()
     Serial.println(systemData.currentValue);
 
     // Create a JSON document of size 1024 bytes
-    StaticJsonDocument<1024> doc;
+    StaticJsonDocument<1024> dataDocument;
+    dataDocument.clear();
 
     // Serialize the Data object to the JSON document
-    doc["relay1"] = systemData.relay1.getState();
-    doc["relay2"] = systemData.relay2.getState();
-    doc["relay3"] = systemData.relay3.getState();
-    doc["relay4"] = systemData.relay4.getState();
-    doc["socketRelay"] = systemData.socketRelay.getState();
-    doc["invtobatRelay"] = systemData.invtobatRelay.getState();
-    doc["paneltoinvRelay"] = systemData.paneltoinvRelay.getState();
-    doc["temperatureValue"] = systemData.temperatureValue;
-    doc["humidityValue"] = systemData.humidityValue;
-    doc["brightnessValue"] = systemData.brightnessValue;
-    doc["windValue"] = systemData.windValue;
-    doc["currentValue"] = systemData.currentValue;
-    doc["voltageValue"] = systemData.voltageValue;
+    dataDocument["relay1"] = systemData.relay1.getState();
+    dataDocument["relay2"] = systemData.relay2.getState();
+    dataDocument["relay3"] = systemData.relay3.getState();
+    dataDocument["relay4"] = systemData.relay4.getState();
+    dataDocument["socketRelay"] = systemData.socketRelay.getState();
+    dataDocument["invtobatRelay"] = systemData.invtobatRelay.getState();
+    dataDocument["paneltoinvRelay"] = systemData.paneltoinvRelay.getState();
+    dataDocument["temperatureValue"] = systemData.temperatureValue;
+    dataDocument["humidityValue"] = systemData.humidityValue;
+    dataDocument["brightnessValue"] = systemData.brightnessValue;
+    dataDocument["windValue"] = systemData.windValue;
+    dataDocument["currentValue"] = systemData.currentValue;
+    dataDocument["voltageValue"] = systemData.voltageValue;
 
-    Serial.println(i);
-    i = i + 2;
+    String JSONData;
+    serializeJson(dataDocument, JSONData); // Serialize dataDocument into JSONData
+
+    // Print the serialized JSON to Serial
+    Serial.println(JSONData);
 
     /*
        // Print the JSON document to the serial monitor
