@@ -76,7 +76,6 @@ void loop()
     systemData.brightnessValue = thermSensor.readTemperature();
     systemData.voltageValue = vSensor.getVoltage();
     systemData.currentValue = aSensor.getCurrent();
-    Serial.println(systemData.currentValue);
 
     // Create a JSON document of size 1024 bytes
     StaticJsonDocument<1024> dataDocument;
@@ -99,28 +98,55 @@ void loop()
 
     String JSONData;
     serializeJson(dataDocument, JSONData); // Serialize dataDocument into JSONData
+    delay(300);
 
-    // Print the serialized JSON to Serial
+    // trimite json la telefon
     Serial.println(JSONData);
 
-    /*
-       // Print the JSON document to the serial monitor
-       serializeJson(doc, Serial);
+    if (Serial.available() > 0)
+    {
+        String command = Serial.readStringUntil('\n');
+        Serial.println("Received FROM ESP command: JSON " + command); // Debug print
 
-       // Send the JSON document via the RX/TX pins to the ESP
-       Serial.println();
+        // Parse the JSON command
+        StaticJsonDocument<1024> doc;
+        DeserializationError error = deserializeJson(doc, command);
+        if (!error)
+        {
+            const char *commandType = doc["command"];
+            int relayNumber = doc["relay"].as<int>();
 
-      Serial.print("Temperature: ");
-       Serial.print(systemData.temperatureValue);
-       Serial.print(" °C, Humidity: ");
-       Serial.print(systemData.humidityValue);
-       Serial.println(" %");
-       Serial.print("Temperature: ");
-       Serial.print(systemData.brightnessValue);
-       Serial.println(" °C");
-       Serial.print(irSensor.getWindSpeed());
-       Serial.print(systemData.voltageValue);
-       */
+            Serial.println("XXXXCommand Type: '");
+            Serial.println(commandType);
+            Serial.println("'");
+            Serial.println("relay number: '");
+            Serial.println(relayNumber);
+            Serial.println("'");
 
-    delay(1000); // Adjust delay as needed
+            if (doc[0])
+                Serial.println("TRUE - COMMAND TOGGLE");
+            {
+                switch (relayNumber)
+                {
+                case 1:
+                    systemData.relay1.setState(!(systemData.relay1.getState()));
+                    Serial.println("AAAAAAAdeci releu 1");
+                    break;
+                case 2:
+                    systemData.relay2.setState(!(systemData.relay2.getState()));
+                    break;
+                case 3:
+                    systemData.relay3.setState(!(systemData.relay3.getState()));
+                    break;
+                case 4:
+                    systemData.relay4.setState(!(systemData.relay4.getState()));
+                    break;
+                }
+            }
+        }
+        else
+        {
+            Serial.println("Failed to parse JSON command: " + String(error.c_str()));
+        }
+    }
 }
