@@ -53,8 +53,8 @@ public:
 };
 
 Data systemData;
-bool loopRunning;
-bool recievingCommand;
+bool loopRunning = true;
+bool recievingCommand = false;
 
 void setup()
 {
@@ -119,6 +119,7 @@ void loop()
             }
 
             if (recievingCommand)
+                Serial.println('RECIEVEEE');
             {
                 if (Serial.available() > 0)
                 {
@@ -129,7 +130,7 @@ void loop()
 
                     if (!error)
                     {
-                        int commandType = doc["command"];
+                        String commandType = doc["command"];
                         int relayNumber = doc["relay"].as<int>();
 
                         Serial.println("XXXXCommand Type:");
@@ -137,32 +138,25 @@ void loop()
                         Serial.println("relay number:");
                         Serial.println(relayNumber);
 
-                        if (doc[0])
+                        Serial.println("TRUE - COMMAND TOGGLE");
+                        switch (relayNumber)
                         {
-                            Serial.println("TRUE - COMMAND TOGGLE");
-                            switch (relayNumber)
-                            {
-                            case 1:
-                                systemData.relay1.setState(!(systemData.relay1.getState()));
-                                Serial.println("AAAAAAAdeci releu 1");
-                                break;
-                            case 2:
-                                systemData.relay2.setState(!(systemData.relay2.getState()));
-                                break;
-                            case 3:
-                                systemData.relay3.setState(!(systemData.relay3.getState()));
-                                break;
-                            case 4:
-                                systemData.relay4.setState(!(systemData.relay4.getState()));
-                                break;
-                            }
+                        case 1:
+                            systemData.relay1.setState(!(systemData.relay1.getState()));
+                            Serial.println("AAAAAAAdeci releu 1");
+                            break;
+                        case 2:
+                            systemData.relay2.setState(!(systemData.relay2.getState()));
+                            break;
+                        case 3:
+                            systemData.relay3.setState(!(systemData.relay3.getState()));
+                            break;
+                        case 4:
+                            systemData.relay4.setState(!(systemData.relay4.getState()));
+                            break;
                         }
                     }
                 }
-            }
-            else
-            {
-                Serial.println("Failed to parse JSON command: " + String(error.c_str()));
             }
         }
     }
