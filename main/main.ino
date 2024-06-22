@@ -53,6 +53,8 @@ public:
 };
 
 Data systemData;
+bool loopRunning;
+bool recievingCommand;
 
 void setup()
 {
@@ -68,85 +70,100 @@ void setup()
 }
 void loop()
 {
-
-    systemData.temperatureValue = tempSensor.readTemperature();
-    systemData.humidityValue = tempSensor.readHumidity();
-    systemData.brightnessValue = ldrSensor.getLDRPercentage();
-    systemData.brightnessValue = thermSensor.readTemperature();
-    systemData.brightnessValue = thermSensor.readTemperature();
-    systemData.voltageValue = vSensor.getVoltage();
-    systemData.currentValue = aSensor.getCurrent();
-
-    // Create a JSON document of size 1024 bytes
-    StaticJsonDocument<1024> dataDocument;
-    dataDocument.clear();
-
-    // Serialize the Data object to the JSON document
-    dataDocument["relay1"] = systemData.relay1.getState();
-    dataDocument["relay2"] = systemData.relay2.getState();
-    dataDocument["relay3"] = systemData.relay3.getState();
-    dataDocument["relay4"] = systemData.relay4.getState();
-    dataDocument["socketRelay"] = systemData.socketRelay.getState();
-    dataDocument["invtobatRelay"] = systemData.invtobatRelay.getState();
-    dataDocument["paneltoinvRelay"] = systemData.paneltoinvRelay.getState();
-    dataDocument["temperatureValue"] = systemData.temperatureValue;
-    dataDocument["humidityValue"] = systemData.humidityValue;
-    dataDocument["brightnessValue"] = systemData.brightnessValue;
-    dataDocument["windValue"] = systemData.windValue;
-    dataDocument["currentValue"] = systemData.currentValue;
-    dataDocument["voltageValue"] = systemData.voltageValue;
-
-    String JSONData;
-    serializeJson(dataDocument, JSONData); // Serialize dataDocument into JSONData
-    delay(300);
-
-    // trimite json la telefon
-    Serial.println(JSONData);
-
-    if (Serial.available() > 0)
+    while (loopRunning)
     {
-        String command = Serial.readStringUntil('\n');
-        Serial.println("Received FROM ESP command: JSON " + command); // Debug print
+        systemData.temperatureValue = tempSensor.readTemperature();
+        systemData.humidityValue = tempSensor.readHumidity();
+        systemData.brightnessValue = ldrSensor.getLDRPercentage();
+        systemData.brightnessValue = thermSensor.readTemperature();
+        systemData.brightnessValue = thermSensor.readTemperature();
+        systemData.voltageValue = vSensor.getVoltage();
+        systemData.currentValue = aSensor.getCurrent();
 
-        // Parse the JSON command
-        StaticJsonDocument<1024> doc;
-        DeserializationError error = deserializeJson(doc, command);
-        if (!error)
+        // Create a JSON document of size 1024 bytes
+        StaticJsonDocument<1024> dataDocument;
+        dataDocument.clear();
+
+        // Serialize the Data object to the JSON document
+        dataDocument["relay1"] = systemData.relay1.getState();
+        dataDocument["relay2"] = systemData.relay2.getState();
+        dataDocument["relay3"] = systemData.relay3.getState();
+        dataDocument["relay4"] = systemData.relay4.getState();
+        dataDocument["socketRelay"] = systemData.socketRelay.getState();
+        dataDocument["invtobatRelay"] = systemData.invtobatRelay.getState();
+        dataDocument["paneltoinvRelay"] = systemData.paneltoinvRelay.getState();
+        dataDocument["temperatureValue"] = systemData.temperatureValue;
+        dataDocument["humidityValue"] = systemData.humidityValue;
+        dataDocument["brightnessValue"] = systemData.brightnessValue;
+        dataDocument["windValue"] = systemData.windValue;
+        dataDocument["currentValue"] = systemData.currentValue;
+        dataDocument["voltageValue"] = systemData.voltageValue;
+
+        String JSONData;
+        serializeJson(dataDocument, JSONData); // Serialize dataDocument into JSONData
+        delay(300);
+
+        // trimite json la telefon
+        Serial.println(JSONData);
+
+        if (Serial.available() > 0)
         {
-            const char *commandType = doc["command"];
-            int relayNumber = doc["relay"].as<int>();
+            String command = Serial.readStringUntil('\n');
 
-            Serial.println("XXXXCommand Type: '");
-            Serial.println(commandType);
-            Serial.println("'");
-            Serial.println("relay number: '");
-            Serial.println(relayNumber);
-            Serial.println("'");
-
-            if (doc[0])
-                Serial.println("TRUE - COMMAND TOGGLE");
+            if (command == "NewTask")
             {
-                switch (relayNumber)
+                loopRunning = false;
+                Serial.println("Received new task command. Stopping loop.");
+                Serial.println("CommandOK"); // Send OK to ESP
+                recievingCommand = true;
+            }
+
+            if (recievingCommand)
+            {
+                if (Serial.available() > 0)
                 {
-                case 1:
-                    systemData.relay1.setState(!(systemData.relay1.getState()));
-                    Serial.println("AAAAAAAdeci releu 1");
-                    break;
-                case 2:
-                    systemData.relay2.setState(!(systemData.relay2.getState()));
-                    break;
-                case 3:
-                    systemData.relay3.setState(!(systemData.relay3.getState()));
-                    break;
-                case 4:
-                    systemData.relay4.setState(!(systemData.relay4.getState()));
-                    break;
+                    String command = Serial.readStringUntil('\n');
+
+                    StaticJsonDocument<1024> doc;
+                    DeserializationError error = deserializeJson(doc, command);
+
+                    if (!error)
+                    {
+                        int commandType = doc["command"];
+                        int relayNumber = doc["relay"].as<int>();
+
+                        Serial.println("XXXXCommand Type:");
+                        Serial.print(commandType);
+                        Serial.println("relay number:");
+                        Serial.println(relayNumber);
+
+                        if (doc[0])
+                        {
+                            Serial.println("TRUE - COMMAND TOGGLE");
+                            switch (relayNumber)
+                            {
+                            case 1:
+                                systemData.relay1.setState(!(systemData.relay1.getState()));
+                                Serial.println("AAAAAAAdeci releu 1");
+                                break;
+                            case 2:
+                                systemData.relay2.setState(!(systemData.relay2.getState()));
+                                break;
+                            case 3:
+                                systemData.relay3.setState(!(systemData.relay3.getState()));
+                                break;
+                            case 4:
+                                systemData.relay4.setState(!(systemData.relay4.getState()));
+                                break;
+                            }
+                        }
+                    }
                 }
             }
-        }
-        else
-        {
-            Serial.println("Failed to parse JSON command: " + String(error.c_str()));
+            else
+            {
+                Serial.println("Failed to parse JSON command: " + String(error.c_str()));
+            }
         }
     }
 }
