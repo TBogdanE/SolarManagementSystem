@@ -1,19 +1,12 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include "modules/temperatureSensor/temperature.h"
-#include "modules/temperatureSensor/temperature.cpp"
 #include "modules/photoresistorSensor/ldr.h"
-#include "modules/photoresistorSensor/ldr.cpp"
 #include "modules/thermistorSensor/thermistor.h"
-#include "modules/thermistorSensor/thermistor.cpp"
 #include "modules/infraredSensor/infrared.h"
-#include "modules/infraredSensor/infrared.cpp"
 #include "modules/voltageSensor/voltageSensor.h"
-#include "modules/voltageSensor/voltageSensor.cpp"
 #include "modules/currentSensor/currentSensor.h"
-#include "modules/currentSensor/currentSensor.cpp"
 #include "modules/relayClass/relay.h"
-#include "modules/relayClass/relay.cpp"
 
 #define DHT_PIN 9
 #define DHT_TYPE DHT11
@@ -32,7 +25,6 @@ CurrentSensor aSensor(CURR_PIN);
 
 class Data
 {
-
 public:
     Relay relay1;
     Relay relay2;
@@ -42,19 +34,25 @@ public:
     Relay invtobatRelay;
     Relay paneltoinvRelay;
     float temperatureValue;
+    float thermistorValue;
     float humidityValue;
     float brightnessValue;
     float windValue;
     float currentValue;
     float voltageValue;
-    Data() : relay1(Relay(2, false)), relay2(Relay(3, false)), relay3(Relay(4, false)), relay4(Relay(5, false)),
-             socketRelay(Relay(6, false)), invtobatRelay(Relay(7, false)), paneltoinvRelay(Relay(8, false)), temperatureValue(0),
-             humidityValue(0), brightnessValue(0), windValue(0), currentValue(0), voltageValue(0) {}
+
+    Data()
+        : relay1(Relay(2, false)), relay2(Relay(3, false)), relay3(Relay(4, false)), relay4(Relay(5, false)),
+          socketRelay(Relay(6, false)), invtobatRelay(Relay(7, false)), paneltoinvRelay(Relay(8, false)),
+          temperatureValue(0), thermistorValue(0), humidityValue(0), brightnessValue(0),
+          windValue(0), currentValue(0), voltageValue(0)
+    {
+    }
 };
 
 Data systemData;
 bool loopRunning = true;
-bool recievingCommand = false;
+bool receivingCommand = false;
 
 void setup()
 {
@@ -68,6 +66,7 @@ void setup()
     systemData.invtobatRelay.initialize();
     systemData.paneltoinvRelay.initialize();
 }
+
 void loop()
 {
     while (loopRunning)
@@ -75,10 +74,10 @@ void loop()
         systemData.temperatureValue = tempSensor.readTemperature();
         systemData.humidityValue = tempSensor.readHumidity();
         systemData.brightnessValue = ldrSensor.getLDRPercentage();
-        systemData.brightnessValue = thermSensor.readTemperature();
-        systemData.brightnessValue = thermSensor.readTemperature();
+        systemData.thermistorValue = thermSensor.readTemperature();
         systemData.voltageValue = vSensor.getVoltage();
         systemData.currentValue = aSensor.getCurrent();
+        systemData.windValue = irSensor.getWindSpeed();
 
         // Create a JSON document of size 1024 bytes
         StaticJsonDocument<1024> dataDocument;
@@ -93,6 +92,7 @@ void loop()
         dataDocument["invtobatRelay"] = systemData.invtobatRelay.getState();
         dataDocument["paneltoinvRelay"] = systemData.paneltoinvRelay.getState();
         dataDocument["temperatureValue"] = systemData.temperatureValue;
+        dataDocument["thermistorValue"] = systemData.thermistorValue;
         dataDocument["humidityValue"] = systemData.humidityValue;
         dataDocument["brightnessValue"] = systemData.brightnessValue;
         dataDocument["windValue"] = systemData.windValue;
@@ -101,9 +101,9 @@ void loop()
 
         String JSONData;
         serializeJson(dataDocument, JSONData); // Serialize dataDocument into JSONData
-        delay(300);
+        delay(1000);
 
-        // trimite json la telefon
+        // Send JSON data to ESP
         Serial.println(JSONData);
 
         if (Serial.available() > 0)
@@ -112,49 +112,50 @@ void loop()
 
             if (command == "NewTask")
             {
-                loopRunning = false;
-                Serial.println("Received new task command. Stopping loop.");
+                loopRunning = false;         // Stop main loop
                 Serial.println("CommandOK"); // Send OK to ESP
-                recievingCommand = true;
+                receivingCommand = true;
+                delay(1000); // Wait for ESP to prepare data
             }
 
-            if (recievingCommand)
-                Serial.println('RECIEVEEE');
+            if (receivingCommand)
             {
                 if (Serial.available() > 0)
                 {
-                    String command = Serial.readStringUntil('\n');
-
+                    String receivedData = Serial.readStringUntil('\n');
                     StaticJsonDocument<1024> doc;
-                    DeserializationError error = deserializeJson(doc, command);
+                    DeserializationError error = deserializeJson(doc, receivedData);
 
                     if (!error)
                     {
-                        String commandType = doc["command"];
+                        // Process received data from ESP
+                        // For simplicity, assume the received data is a single integer representing a relay number
                         int relayNumber = doc["relay"].as<int>();
-
-                        Serial.println("XXXXCommand Type:");
-                        Serial.print(commandType);
-                        Serial.println("relay number:");
+                        Serial.print("Received relay number from ESP: ");
                         Serial.println(relayNumber);
 
-                        Serial.println("TRUE - COMMAND TOGGLE");
+                        // Toggle the corresponding relay state
                         switch (relayNumber)
                         {
                         case 1:
-                            systemData.relay1.setState(!(systemData.relay1.getState()));
-                            Serial.println("AAAAAAAdeci releu 1");
+                            systemData.relay1.setState(!systemData.relay1.getState());
                             break;
                         case 2:
-                            systemData.relay2.setState(!(systemData.relay2.getState()));
+                            systemData.relay2.setState(!systemData.relay2.getState());
                             break;
                         case 3:
-                            systemData.relay3.setState(!(systemData.relay3.getState()));
+                            systemData.relay3.setState(!systemData.relay3.getState());
                             break;
                         case 4:
-                            systemData.relay4.setState(!(systemData.relay4.getState()));
+                            systemData.relay4.setState(!systemData.relay4.getState());
+                            break;
+                        default:
                             break;
                         }
+
+                        // After processing, resume normal loop operation
+                        loopRunning = true;
+                        receivingCommand = false;
                     }
                 }
             }
