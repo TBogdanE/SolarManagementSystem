@@ -42,8 +42,8 @@ public:
     float voltageValue;
 
     Data()
-        : relay1(Relay(2, false)), relay2(Relay(3, false)), relay3(Relay(4, false)), relay4(Relay(5, false)),
-          socketRelay(Relay(6, false)), invtobatRelay(Relay(7, false)), paneltoinvRelay(Relay(8, false)),
+        : relay1(Relay(2, true)), relay2(Relay(3, true)), relay3(Relay(4, true)), relay4(Relay(5, true)),
+          socketRelay(Relay(8, true)), invtobatRelay(Relay(7, true)), paneltoinvRelay(Relay(8, true)),
           temperatureValue(0), thermistorValue(0), humidityValue(0), brightnessValue(0),
           windValue(0), currentValue(0), voltageValue(0)
     {
@@ -65,6 +65,8 @@ void setup()
     systemData.socketRelay.initialize();
     systemData.invtobatRelay.initialize();
     systemData.paneltoinvRelay.initialize();
+
+    systemData.socketRelay.setState(true);
 }
 
 void loop()
@@ -148,6 +150,10 @@ void loop()
                             break;
                         case 4:
                             systemData.relay4.setState(!systemData.relay4.getState());
+                            break;
+                        case 5:
+                            systemData.socketRelay.setState(!systemData.socketRelay.getState());
+                            Serial.println(systemData.socketRelay.getState());
                             break;
                         default:
                             break;
