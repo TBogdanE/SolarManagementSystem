@@ -60,6 +60,8 @@ public:
 Data systemData;
 bool loopRunning = true;
 bool receivingCommand = false;
+String commandJSON = "";
+String relayNumJSON = "";
 
 void setup()
 {
@@ -94,15 +96,18 @@ void loop()
                 if (Serial.available() > 0)
                 {
                     String recievedData = Serial.readStringUntil('\n');
-                    StaticJsonDocument<1024> doc;
+                    delay(300);
+                    StaticJsonDocument<2048> doc;
                     DeserializationError error = deserializeJson(doc, recievedData);
-
                     if (!error)
                     {
-
+                        delay(300);
                         int relayNumber = doc["relay"].as<int>();
-                        Serial.println("Relay num" + relayNumber);
-                        delay(1000);
+                        Serial.println(relayNumber);
+                        delay(300);
+                        String cmd = doc["command"].as<String>();
+                        Serial.println("cmd " + cmd);
+                        delay(300);
                         loopRunning = true;
                         receivingCommand = false;
                     }
