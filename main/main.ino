@@ -60,8 +60,6 @@ public:
 Data systemData;
 bool loopRunning = true;
 bool receivingCommand = false;
-String commandJSON = "";
-String relayNumJSON = "";
 
 void setup()
 {
@@ -74,7 +72,6 @@ void setup()
     systemData.socketRelay.initialize();
     systemData.invtobatRelay.initialize();
     systemData.paneltoinvRelay.initialize();
-
     systemData.socketRelay.setState(true);
 }
 
@@ -108,30 +105,46 @@ void loop()
                         String cmd = doc["command"].as<String>();
                         Serial.println("cmd " + cmd);
                         delay(300);
+                        toggleRelays(relayNumber);
                         loopRunning = true;
                         receivingCommand = false;
                     }
                 }
             }
-            /* command = Serial.readStringUntil('\n');
-             command.trim();
-
-             StaticJsonDocument<1024> doc;
-             DeserializationError error = deserializeJson(doc, command);
-
-             String relayCommand = doc["command"].as<String>();
-             Serial.println("RECE" + command);
-
-             if (relayCommand.equals("toggleRelay"))
-             {
-                 Serial.println('tooooooooooooooooooogle');
-             }
-             else
-             {
-                 Serial.println("Invalid command");
-             }*/
         }
     }
+}
+
+void toggleRelays(int relayNum)
+{
+    switch (relayNum)
+    {
+    case 1:
+        systemData.relay1.setState(!systemData.relay1.getState());
+        Serial.println("I've toggled relay 1");
+        Serial.println("state of relay 1");
+        Serial.println(systemData.relay1.getState());
+        break;
+    case 2:
+        systemData.relay2.setState(!systemData.relay2.getState());
+        break;
+    case 3:
+        systemData.relay3.setState(!systemData.relay3.getState());
+        break;
+    case 4:
+        systemData.relay4.setState(!systemData.relay4.getState());
+        break;
+    case 5:
+        systemData.socketRelay.setState(!systemData.socketRelay.getState());
+        Serial.println(systemData.socketRelay.getState());
+        break;
+    default:
+        break;
+    }
+}
+/*
+}
+}
 }
 /*systemData.temperatureValue = tempSensor.readTemperature();
 systemData.humidityValue = tempSensor.readHumidity();
@@ -167,7 +180,7 @@ delay(1000);
 
 if (Serial.available() > 0)
 {
-    String command = Serial.readStringUntil('\n');
+String command = Serial.readStringUntil('\n');
 }
 // Send JSON data to ESP
 // Serial.println(JSONData);

@@ -14,7 +14,7 @@ void Relay::initialize()
 
 void Relay::setState(bool state)
 {
-    digitalWrite(analogPin, state ? HIGH : LOW);
+    digitalWrite(analogPin, state ? LOW : HIGH);
     status = state;
 }
 
