@@ -1,12 +1,19 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include "modules/temperatureSensor/temperature.h"
+#include "modules/temperatureSensor/temperature.cpp"
 #include "modules/photoresistorSensor/ldr.h"
+#include "modules/photoresistorSensor/ldr.cpp"
 #include "modules/thermistorSensor/thermistor.h"
+#include "modules/thermistorSensor/thermistor.cpp"
 #include "modules/infraredSensor/infrared.h"
+#include "modules/infraredSensor/infrared.cpp"
 #include "modules/voltageSensor/voltageSensor.h"
+#include "modules/voltageSensor/voltageSensor.cpp"
 #include "modules/currentSensor/currentSensor.h"
+#include "modules/currentSensor/currentSensor.cpp"
 #include "modules/relayClass/relay.h"
+#include "modules/relayClass/relay.cpp"
 
 #define DHT_PIN 9
 #define DHT_TYPE DHT11
@@ -71,100 +78,92 @@ void setup()
 
 void loop()
 {
-    while (loopRunning)
+    if (Serial.available() > 0)
     {
-        systemData.temperatureValue = tempSensor.readTemperature();
-        systemData.humidityValue = tempSensor.readHumidity();
-        systemData.brightnessValue = ldrSensor.getLDRPercentage();
-        systemData.thermistorValue = thermSensor.readTemperature();
-        systemData.voltageValue = vSensor.getVoltage();
-        systemData.currentValue = aSensor.getCurrent();
-        systemData.windValue = irSensor.getWindSpeed();
-
-        // Create a JSON document of size 1024 bytes
-        StaticJsonDocument<1024> dataDocument;
-        dataDocument.clear();
-
-        // Serialize the Data object to the JSON document
-        dataDocument["relay1"] = systemData.relay1.getState();
-        dataDocument["relay2"] = systemData.relay2.getState();
-        dataDocument["relay3"] = systemData.relay3.getState();
-        dataDocument["relay4"] = systemData.relay4.getState();
-        dataDocument["socketRelay"] = systemData.socketRelay.getState();
-        dataDocument["invtobatRelay"] = systemData.invtobatRelay.getState();
-        dataDocument["paneltoinvRelay"] = systemData.paneltoinvRelay.getState();
-        dataDocument["temperatureValue"] = systemData.temperatureValue;
-        dataDocument["thermistorValue"] = systemData.thermistorValue;
-        dataDocument["humidityValue"] = systemData.humidityValue;
-        dataDocument["brightnessValue"] = systemData.brightnessValue;
-        dataDocument["windValue"] = systemData.windValue;
-        dataDocument["currentValue"] = systemData.currentValue;
-        dataDocument["voltageValue"] = systemData.voltageValue;
-
-        String JSONData;
-        serializeJson(dataDocument, JSONData); // Serialize dataDocument into JSONData
-        delay(1000);
-
-        // Send JSON data to ESP
-        Serial.println(JSONData);
-
-        if (Serial.available() > 0)
+        String command = Serial.readStringUntil('\n');
+        command.trim();
+        if (command == "NewTask")
         {
-            String command = Serial.readStringUntil('\n');
+            loopRunning = false;
+            Serial.println("CommandOK");
+            receivingCommand = true;
+            delay(1000);
 
-            if (command == "NewTask")
-            {
-                loopRunning = false;         // Stop main loop
-                Serial.println("CommandOK"); // Send OK to ESP
-                receivingCommand = true;
-                delay(1000); // Wait for ESP to prepare data
-            }
-
-            if (receivingCommand)
+            while (receivingCommand)
             {
                 if (Serial.available() > 0)
                 {
-                    String receivedData = Serial.readStringUntil('\n');
+                    String recievedData = Serial.readStringUntil('\n');
                     StaticJsonDocument<1024> doc;
-                    DeserializationError error = deserializeJson(doc, receivedData);
+                    DeserializationError error = deserializeJson(doc, recievedData);
 
                     if (!error)
                     {
-                        // Process received data from ESP
-                        // For simplicity, assume the received data is a single integer representing a relay number
+
                         int relayNumber = doc["relay"].as<int>();
-                        Serial.print("Received relay number from ESP: ");
-                        Serial.println(relayNumber);
-
-                        // Toggle the corresponding relay state
-                        switch (relayNumber)
-                        {
-                        case 1:
-                            systemData.relay1.setState(!systemData.relay1.getState());
-                            break;
-                        case 2:
-                            systemData.relay2.setState(!systemData.relay2.getState());
-                            break;
-                        case 3:
-                            systemData.relay3.setState(!systemData.relay3.getState());
-                            break;
-                        case 4:
-                            systemData.relay4.setState(!systemData.relay4.getState());
-                            break;
-                        case 5:
-                            systemData.socketRelay.setState(!systemData.socketRelay.getState());
-                            Serial.println(systemData.socketRelay.getState());
-                            break;
-                        default:
-                            break;
-                        }
-
-                        // After processing, resume normal loop operation
+                        Serial.println("Relay num" + relayNumber);
+                        delay(1000);
                         loopRunning = true;
                         receivingCommand = false;
                     }
                 }
             }
+            /* command = Serial.readStringUntil('\n');
+             command.trim();
+
+             StaticJsonDocument<1024> doc;
+             DeserializationError error = deserializeJson(doc, command);
+
+             String relayCommand = doc["command"].as<String>();
+             Serial.println("RECE" + command);
+
+             if (relayCommand.equals("toggleRelay"))
+             {
+                 Serial.println('tooooooooooooooooooogle');
+             }
+             else
+             {
+                 Serial.println("Invalid command");
+             }*/
         }
     }
 }
+/*systemData.temperatureValue = tempSensor.readTemperature();
+systemData.humidityValue = tempSensor.readHumidity();
+systemData.brightnessValue = ldrSensor.getLDRPercentage();
+systemData.thermistorValue = thermSensor.readTemperature();
+systemData.voltageValue = vSensor.getVoltage();
+systemData.currentValue = aSensor.getCurrent();
+systemData.windValue = irSensor.getWindSpeed();
+
+// Create a JSON document of size 1024 bytes
+StaticJsonDocument<1024> dataDocument;
+dataDocument.clear();
+
+// Serialize the Data object to the JSON document
+dataDocument["relay1"] = systemData.relay1.getState();
+dataDocument["relay2"] = systemData.relay2.getState();
+dataDocument["relay3"] = systemData.relay3.getState();
+dataDocument["relay4"] = systemData.relay4.getState();
+dataDocument["socketRelay"] = systemData.socketRelay.getState();
+dataDocument["invtobatRelay"] = systemData.invtobatRelay.getState();
+dataDocument["paneltoinvRelay"] = systemData.paneltoinvRelay.getState();
+dataDocument["temperatureValue"] = systemData.temperatureValue;
+dataDocument["thermistorValue"] = systemData.thermistorValue;
+dataDocument["humidityValue"] = systemData.humidityValue;
+dataDocument["brightnessValue"] = systemData.brightnessValue;
+dataDocument["windValue"] = systemData.windValue;
+dataDocument["currentValue"] = systemData.currentValue;
+dataDocument["voltageValue"] = systemData.voltageValue;
+
+String JSONData;
+serializeJson(dataDocument, JSONData); // Serialize dataDocument into JSONData
+delay(1000);
+
+if (Serial.available() > 0)
+{
+    String command = Serial.readStringUntil('\n');
+}
+// Send JSON data to ESP
+// Serial.println(JSONData);
+*/
