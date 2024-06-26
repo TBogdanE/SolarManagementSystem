@@ -97,6 +97,10 @@ void sendData()
     delay(1000);
 }
 
+void powerManagement()
+{
+}
+
 void setup()
 {
     Serial.begin(9600);

@@ -1,28 +1,16 @@
 #include "currentSensor.h"
+#include <Arduino.h>
 
 CurrentSensor::CurrentSensor(int CURRpin)
+    : _CURRpin(CURRpin)
 {
-    _CURRpin = CURRpin;
+    // Constructor implementation
 }
 
-int CurrentSensor::getCurrent()
+float CurrentSensor::getCurrent()
 {
-    const int numReadings = 100; // Number of readings to average
-    long total = 0;
-
-    for (int i = 0; i < numReadings; i++)
-    {
-        int sensorValue = analogRead(_CURRpin); // Read the analog input
-        total += sensorValue;
-        delay(1); // Short delay between readings
-    }
-
-    float averageSensorValue = total / numReadings; // Average the sensor readings
-
-    // Convert the analog reading to voltage
-    float voltage = averageSensorValue * (5.0 / 1023.0);
-
-    // Calculate the current in Amperes
-    float current = (voltage - zeroCurrentVoltage) / (sensorSensitivity / 1000.0);
-    return current;
+    int sensorValue = analogRead(_CURRpin);                                   // Read the analog input
+    float volt = (sensorValue / 1024.0) * 5000;                               // Convert to mV
+    float current = (volt - (zeroCurrentVoltage * 1000)) / sensorSensitivity; // Calculate current in A
+    return abs(current);                                                      // Return the absolute value of the current
 }
