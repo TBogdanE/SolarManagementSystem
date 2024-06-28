@@ -23,6 +23,15 @@
 #define V_PIN A0
 #define CURR_PIN A5
 
+#define DAY_THRESHOLD 500           // LDR sensor threshold for detecting day/night
+#define MAX_BATTERY_VOLTAGE 14.8    // Maximum battery voltage when fully charged
+#define MAX_SAFE_TEMP 60            // Maximum safe temperature for the solar panel (in degrees Celsius)
+#define MAX_SAFE_WIND_SPEED 50      // Maximum safe wind speed (in km/h)
+#define MAX_SOLAR_INPUT 1000        // Maximum solar input (in watts)
+#define HIGH_CONSUMER_THRESHOLD 300 // Power draw threshold to consider turning on high consumers (in watts)
+#define CRITICAL_TEMP 30            // Critical temperature threshold (in degrees Celsius)
+#define CRITICAL_HUMIDITY 70        // Critical humidity threshold (in percentage)
+
 TemperatureSensor tempSensor(DHT_PIN, DHT_TYPE);
 LDRSensor ldrSensor(LDR_PIN);
 ThermistorSensor thermSensor(THER_PIN);
@@ -97,8 +106,198 @@ void sendData()
     delay(1000);
 }
 
-void powerManagement()
+void manageConsumers()
 {
+    bool is_daytime = (systemData.brightnessValue > DAY_THRESHOLD);
+    float battery_capacity_percentage = (systemData.voltageValue / MAX_BATTERY_VOLTAGE) * 100;
+
+    if (is_daytime)
+    {
+        if (battery_capacity_percentage > 60)
+        {
+            turnOnAllConsumers();
+        }
+        else if (battery_capacity_percentage > 40)
+        {
+            turnOnLowConsumers();
+            evaluateHighConsumersBasedOnSolarInputAndPowerDraw();
+        }
+        else
+        {
+            turnOffHighConsumers();
+            if (criticalLowConsumersNeeded())
+            {
+                turnOnLowConsumers();
+            }
+        }
+    }
+    else
+    {
+        if (battery_capacity_percentage > 70)
+        {
+            turnOnAllConsumers();
+        }
+        else if (battery_capacity_percentage > 50)
+        {
+            turnOnLowConsumers();
+            turnOffHighConsumers();
+        }
+        else
+        {
+            turnOffHighConsumers();
+            if (criticalLowConsumersNeeded())
+            {
+                turnOnLowConsumers();
+            }
+            else
+            {
+                turnOffAllConsumers();
+            }
+        }
+    }
+
+    // Safety checks
+    if (systemData.thermistorValue > MAX_SAFE_TEMP)
+    {
+        reduceLoadToPreventOverheating();
+    }
+    if (systemData.windValue > MAX_SAFE_WIND_SPEED)
+    {
+        disconnectSolarPanelForSafety();
+        switchToBatteryOnlyMode();
+    }
+
+    if (is_daytime)
+    {
+        if (battery_capacity_percentage > 60)
+        {
+            turnOnAllConsumers();
+        }
+        else if (battery_capacity_percentage > 40)
+        {
+            turnOnLowConsumers();
+            evaluateHighConsumersBasedOnSolarInputAndPowerDraw();
+        }
+        else
+        {
+            turnOffHighConsumers();
+            if (criticalLowConsumersNeeded())
+            {
+                turnOnLowConsumers();
+            }
+        }
+    }
+    else
+    {
+        if (battery_capacity_percentage > 70)
+        {
+            turnOnAllConsumers();
+        }
+        else if (battery_capacity_percentage > 50)
+        {
+            turnOnLowConsumers();
+            turnOffHighConsumers();
+        }
+        else
+        {
+            turnOffHighConsumers();
+            if (criticalLowConsumersNeeded())
+            {
+                turnOnLowConsumers();
+            }
+            else
+            {
+                turnOffAllConsumers();
+            }
+        }
+    }
+
+    // Safety checks
+    if (systemData.thermistorValue > MAX_SAFE_TEMP)
+    {
+        reduceLoadToPreventOverheating();
+    }
+    if (systemData.windValue > MAX_SAFE_WIND_SPEED)
+    {
+        disconnectSolarPanelForSafety();
+        switchToBatteryOnlyMode();
+    }
+}
+
+void turnOnAllConsumers()
+{
+    systemData.relay1.setState(true);
+    systemData.relay2.setState(true);
+    systemData.relay3.setState(true);
+    systemData.relay4.setState(true);
+}
+
+void turnOnLowConsumers()
+{
+    systemData.relay1.setState(true);
+    systemData.relay2.setState(true);
+}
+
+void evaluateHighConsumersBasedOnSolarInputAndPowerDraw()
+{
+    // Check if the current solar input is sufficient to handle high consumers
+    float currentPowerDraw = systemData.currentValue * systemData.voltageValue;
+    float remainingCapacity = MAX_SOLAR_INPUT - currentPowerDraw;
+
+    if (remainingCapacity > HIGH_CONSUMER_THRESHOLD)
+    {
+        systemData.relay3.setState(true);
+        systemData.relay4.setState(true);
+    }
+    else
+    {
+        systemData.relay3.setState(false);
+        systemData.relay4.setState(false);
+    }
+}
+
+bool criticalLowConsumersNeeded()
+{
+    // Determine if critical low consumers are needed based on temperature and humidity
+    if (systemData.temperatureValue > CRITICAL_TEMP || systemData.humidityValue > CRITICAL_HUMIDITY)
+    {
+        return true;
+    }
+    return false;
+}
+
+void reduceLoadToPreventOverheating()
+{
+    // Reduce load by turning off high consumers
+    systemData.relay3.setState(false);
+    systemData.relay4.setState(false);
+}
+
+void disconnectSolarPanelForSafety()
+{
+    systemData.paneltoinvRelay.setState(false);
+}
+
+void switchToBatteryOnlyMode()
+{
+    systemData.relay1.setState(true);
+    systemData.relay2.setState(true);
+    systemData.relay3.setState(false);
+    systemData.relay4.setState(false);
+}
+
+void turnOffAllConsumers()
+{
+    systemData.relay1.setState(false);
+    systemData.relay2.setState(false);
+    systemData.relay3.setState(false);
+    systemData.relay4.setState(false);
+}
+
+void turnOffHighConsumers()
+{
+    systemData.relay3.setState(false);
+    systemData.relay4.setState(false);
 }
 
 void setup()
