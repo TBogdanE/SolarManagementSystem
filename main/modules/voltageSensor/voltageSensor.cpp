@@ -16,3 +16,18 @@ float VoltageSensor::getVoltage()
     float inputVoltage = voltage * ((R1 + R2) / R2);
     return inputVoltage;
 }
+
+float VoltageSensor::getBatteryPercentage()
+{
+    float voltage = getVoltage();
+    float batteryPercentage = ((voltage - minBatteryVoltage) / (maxBatteryVoltage - minBatteryVoltage)) * 100;
+    if (batteryPercentage > 100)
+    {
+        batteryPercentage = 100;
+    }
+    else if (batteryPercentage < 0)
+    {
+        batteryPercentage = 0;
+    }
+    return batteryPercentage;
+}

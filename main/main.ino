@@ -14,6 +14,8 @@
 #include "modules/currentSensor/currentSensor.cpp"
 #include "modules/relayClass/relay.h"
 #include "modules/relayClass/relay.cpp"
+#include "modules/windSensor/windSensor.h"
+#include "modules/windSensor/windSensor.cpp"
 
 #define DHT_PIN 9
 #define DHT_TYPE DHT11
@@ -21,6 +23,7 @@
 #define THER_PIN A3
 #define IR_PIN A4
 #define V_PIN A0
+#define W_PIN 19
 #define CURR_PIN A5
 
 #define DAY_THRESHOLD 500           // LDR sensor threshold for detecting day/night
@@ -38,6 +41,7 @@ ThermistorSensor thermSensor(THER_PIN);
 InfraredSensor irSensor(IR_PIN);
 VoltageSensor vSensor(V_PIN);
 CurrentSensor aSensor(CURR_PIN);
+WindSensor wSensor(W_PIN);
 
 class Data
 {
@@ -56,12 +60,13 @@ public:
     float windValue;
     float currentValue;
     float voltageValue;
+    float batteryPercentage;
 
     Data()
         : relay1(Relay(2, true)), relay2(Relay(3, true)), relay3(Relay(4, true)), relay4(Relay(5, true)),
           socketRelay(Relay(8, true)), invtobatRelay(Relay(7, true)), paneltoinvRelay(Relay(8, true)),
           temperatureValue(0), thermistorValue(0), humidityValue(0), brightnessValue(0),
-          windValue(0), currentValue(0), voltageValue(0)
+          windValue(0), currentValue(0), voltageValue(0), batteryPercentage(0)
     {
     }
 };
@@ -77,6 +82,7 @@ void sendData()
     systemData.brightnessValue = ldrSensor.getLDRPercentage();
     systemData.thermistorValue = thermSensor.readTemperature();
     systemData.voltageValue = vSensor.getVoltage();
+    systemData.batteryPercentage = vSensor.getBatteryPercentage();
     systemData.currentValue = aSensor.getCurrent();
     systemData.windValue = irSensor.getWindSpeed();
 
@@ -98,6 +104,7 @@ void sendData()
     dataDocument["brightnessValue"] = systemData.brightnessValue;
     dataDocument["windValue"] = systemData.windValue;
     dataDocument["currentValue"] = systemData.currentValue;
+    dataDocument["batteryPercentage"] = systemData.batteryPercentage;
     dataDocument["voltageValue"] = systemData.voltageValue;
 
     String JSONData;
@@ -109,15 +116,14 @@ void sendData()
 void manageConsumers()
 {
     bool is_daytime = (systemData.brightnessValue > DAY_THRESHOLD);
-    float battery_capacity_percentage = (systemData.voltageValue / MAX_BATTERY_VOLTAGE) * 100;
 
     if (is_daytime)
     {
-        if (battery_capacity_percentage > 60)
+        if (systemData.batteryPercentage > 60)
         {
             turnOnAllConsumers();
         }
-        else if (battery_capacity_percentage > 40)
+        else if (systemData.batteryPercentage > 40)
         {
             turnOnLowConsumers();
             evaluateHighConsumersBasedOnSolarInputAndPowerDraw();
@@ -133,11 +139,11 @@ void manageConsumers()
     }
     else
     {
-        if (battery_capacity_percentage > 70)
+        if (systemData.batteryPercentage > 70)
         {
             turnOnAllConsumers();
         }
-        else if (battery_capacity_percentage > 50)
+        else if (systemData.batteryPercentage > 50)
         {
             turnOnLowConsumers();
             turnOffHighConsumers();
@@ -169,11 +175,11 @@ void manageConsumers()
 
     if (is_daytime)
     {
-        if (battery_capacity_percentage > 60)
+        if (systemData.batteryPercentage > 60)
         {
             turnOnAllConsumers();
         }
-        else if (battery_capacity_percentage > 40)
+        else if (systemData.batteryPercentage > 40)
         {
             turnOnLowConsumers();
             evaluateHighConsumersBasedOnSolarInputAndPowerDraw();
@@ -189,11 +195,11 @@ void manageConsumers()
     }
     else
     {
-        if (battery_capacity_percentage > 70)
+        if (systemData.batteryPercentage > 70)
         {
             turnOnAllConsumers();
         }
-        else if (battery_capacity_percentage > 50)
+        else if (systemData.batteryPercentage > 50)
         {
             turnOnLowConsumers();
             turnOffHighConsumers();
