@@ -4,7 +4,8 @@
 // Constructor
 WindSensor::WindSensor(int Wpin) : _Wpin(Wpin)
 {
-    pinMode(hallSensorPin, INPUT);
+    _Wpin = Wpin;
+    pinMode(_Wpin, INPUT);
 }
 
 // Function to count rotations
@@ -17,7 +18,7 @@ void WindSensor::countRotation()
 float WindSensor::getWindSpeed()
 {
     unsigned long currentTime = millis();
-    int ane = digitalRead(hallSensorPin);
+    int ane = digitalRead(_Wpin);
 
     if (ane == LOW)
     {

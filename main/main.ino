@@ -1,5 +1,9 @@
+// NEEDS ARDUINO CLI INSTALLED AND CONFIGURED
+
+// include Arduino.h becasue we are working in VS Code, not Arduino IDE
 #include <Arduino.h>
 #include <ArduinoJson.h>
+// include our modules
 #include "modules/temperatureSensor/temperature.h"
 #include "modules/temperatureSensor/temperature.cpp"
 #include "modules/photoresistorSensor/ldr.h"
@@ -17,24 +21,27 @@
 #include "modules/windSensor/windSensor.h"
 #include "modules/windSensor/windSensor.cpp"
 
+// define pins for the sensors
 #define DHT_PIN 9
 #define DHT_TYPE DHT11
 #define LDR_PIN A1
 #define THER_PIN A3
 #define IR_PIN A4
 #define V_PIN A0
-#define W_PIN 19
+#define W_PIN 10
 #define CURR_PIN A5
 
+// setting global values
 #define DAY_THRESHOLD 500           // LDR sensor threshold for detecting day/night
 #define MAX_BATTERY_VOLTAGE 14.8    // Maximum battery voltage when fully charged
 #define MAX_SAFE_TEMP 60            // Maximum safe temperature for the solar panel (in degrees Celsius)
 #define MAX_SAFE_WIND_SPEED 50      // Maximum safe wind speed (in km/h)
-#define MAX_SOLAR_INPUT 1000        // Maximum solar input (in watts)
-#define HIGH_CONSUMER_THRESHOLD 300 // Power draw threshold to consider turning on high consumers (in watts)
+#define MAX_SOLAR_INPUT 115         // Maximum solar input (in watts)
+#define HIGH_CONSUMER_THRESHOLD 250 // Power draw threshold to consider turning on high consumers (in watts)
 #define CRITICAL_TEMP 30            // Critical temperature threshold (in degrees Celsius)
 #define CRITICAL_HUMIDITY 70        // Critical humidity threshold (in percentage)
 
+// classes for sensor objects in ./modules
 TemperatureSensor tempSensor(DHT_PIN, DHT_TYPE);
 LDRSensor ldrSensor(LDR_PIN);
 ThermistorSensor thermSensor(THER_PIN);
@@ -43,6 +50,8 @@ VoltageSensor vSensor(V_PIN);
 CurrentSensor aSensor(CURR_PIN);
 WindSensor wSensor(W_PIN);
 
+// data object for storing everything we need to send over to phone
+// also, we are creating objects for each relay
 class Data
 {
 public:
@@ -77,9 +86,10 @@ bool receivingCommand = false;
 
 void sendData()
 {
+    // read data from all the sensors
     systemData.temperatureValue = tempSensor.readTemperature();
     systemData.humidityValue = tempSensor.readHumidity();
-    systemData.brightnessValue = ldrSensor.getLDRPercentage();
+    systemData.brightnessValue = ldrSensor.getLDRLux();
     systemData.thermistorValue = thermSensor.readTemperature();
     systemData.voltageValue = vSensor.getVoltage();
     systemData.batteryPercentage = vSensor.getBatteryPercentage();
@@ -99,12 +109,12 @@ void sendData()
     dataDocument["invtobatRelay"] = systemData.invtobatRelay.getState();
     dataDocument["paneltoinvRelay"] = systemData.paneltoinvRelay.getState();
     dataDocument["temperatureValue"] = systemData.temperatureValue;
-    dataDocument["thermistorValue"] = systemData.thermistorValue;
     dataDocument["humidityValue"] = systemData.humidityValue;
+    dataDocument["thermistorValue"] = systemData.thermistorValue;
     dataDocument["brightnessValue"] = systemData.brightnessValue;
     dataDocument["windValue"] = systemData.windValue;
-    dataDocument["currentValue"] = systemData.currentValue;
     dataDocument["batteryPercentage"] = systemData.batteryPercentage;
+    dataDocument["currentValue"] = systemData.currentValue;
     dataDocument["voltageValue"] = systemData.voltageValue;
 
     String JSONData;
@@ -113,8 +123,10 @@ void sendData()
     delay(1000);
 }
 
+// logic for consumers management
 void manageConsumers()
 {
+    // check if day or night
     bool is_daytime = (systemData.brightnessValue > DAY_THRESHOLD);
 
     if (is_daytime)
@@ -162,63 +174,7 @@ void manageConsumers()
         }
     }
 
-    // Safety checks
-    if (systemData.thermistorValue > MAX_SAFE_TEMP)
-    {
-        reduceLoadToPreventOverheating();
-    }
-    if (systemData.windValue > MAX_SAFE_WIND_SPEED)
-    {
-        disconnectSolarPanelForSafety();
-        switchToBatteryOnlyMode();
-    }
-
-    if (is_daytime)
-    {
-        if (systemData.batteryPercentage > 60)
-        {
-            turnOnAllConsumers();
-        }
-        else if (systemData.batteryPercentage > 40)
-        {
-            turnOnLowConsumers();
-            evaluateHighConsumersBasedOnSolarInputAndPowerDraw();
-        }
-        else
-        {
-            turnOffHighConsumers();
-            if (criticalLowConsumersNeeded())
-            {
-                turnOnLowConsumers();
-            }
-        }
-    }
-    else
-    {
-        if (systemData.batteryPercentage > 70)
-        {
-            turnOnAllConsumers();
-        }
-        else if (systemData.batteryPercentage > 50)
-        {
-            turnOnLowConsumers();
-            turnOffHighConsumers();
-        }
-        else
-        {
-            turnOffHighConsumers();
-            if (criticalLowConsumersNeeded())
-            {
-                turnOnLowConsumers();
-            }
-            else
-            {
-                turnOffAllConsumers();
-            }
-        }
-    }
-
-    // Safety checks
+    // safety checks
     if (systemData.thermistorValue > MAX_SAFE_TEMP)
     {
         reduceLoadToPreventOverheating();
@@ -246,7 +202,7 @@ void turnOnLowConsumers()
 
 void evaluateHighConsumersBasedOnSolarInputAndPowerDraw()
 {
-    // Check if the current solar input is sufficient to handle high consumers
+    // check if the current solar input is sufficient to handle high consumers
     float currentPowerDraw = systemData.currentValue * systemData.voltageValue;
     float remainingCapacity = MAX_SOLAR_INPUT - currentPowerDraw;
 
@@ -264,7 +220,7 @@ void evaluateHighConsumersBasedOnSolarInputAndPowerDraw()
 
 bool criticalLowConsumersNeeded()
 {
-    // Determine if critical low consumers are needed based on temperature and humidity
+    // determine if critical low consumers are needed based on temperature and humidity
     if (systemData.temperatureValue > CRITICAL_TEMP || systemData.humidityValue > CRITICAL_HUMIDITY)
     {
         return true;
@@ -322,6 +278,9 @@ void setup()
 
 void loop()
 {
+    // everytime the loop starts, it will check if is recieving on serial a specific command we need, in our case, 'NewTask'
+    //  if we recieve this command, we will stop the loop, send back via serial to ESP 'CommandOK', so we tell ESP we are ready
+    //  to recieve the final command; after, we are waiting for the command, and execute it, than, go back to normal work
     if (Serial.available() > 0)
     {
         String command = Serial.readStringUntil('\n');
@@ -344,10 +303,8 @@ void loop()
                     if (!error)
                     {
                         int relayNumber = doc["relay"].as<int>();
-                        // Serial.println(relayNumber);
-                        // String cmd = doc["command"].as<String>();
-                        // Serial.println("cmd " + cmd);
                         delay(300);
+                        // toggle specific relay selected from phone
                         toggleRelays(relayNumber);
                         loopRunning = true;
                         receivingCommand = false;
@@ -358,13 +315,15 @@ void loop()
     }
     static unsigned long lastSendTime = 0;
     unsigned long currentTime = millis();
-    if (currentTime - lastSendTime >= 5000) // Adjust interval as needed (e.g., every 5 seconds)
+    if (currentTime - lastSendTime >= 5000)
     {
-        sendData(); // Send sensor data and relay states to phone
+        sendData(); // send sensor data and relay states to phone
         lastSendTime = currentTime;
     }
 }
 
+// function that toggles relay state
+// we recieve a relay number, we than change it's state to it's opposite state, and toggle the relay
 void toggleRelays(int relayNum)
 {
     switch (relayNum)
@@ -385,6 +344,14 @@ void toggleRelays(int relayNum)
     case 5:
         systemData.socketRelay.setState(!systemData.socketRelay.getState());
         Serial.println(systemData.socketRelay.getState());
+        break;
+    case 6:
+        systemData.invtobatRelay.setState(!systemData.invtobatRelay.getState());
+        Serial.println(systemData.invtobatRelay.getState());
+        break;
+    case 7:
+        systemData.paneltoinvRelay.setState(!systemData.paneltoinvRelay.getState());
+        Serial.println(systemData.paneltoinvRelay.getState());
         break;
     default:
         break;

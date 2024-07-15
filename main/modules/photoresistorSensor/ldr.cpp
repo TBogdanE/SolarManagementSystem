@@ -1,15 +1,25 @@
 #include "ldr.h"
 
-LDRSensor::LDRSensor(int LDRpin) {
+// Constructor
+LDRSensor::LDRSensor(int LDRpin)
+{
     _LDRpin = LDRpin;
 }
-    
-   int LDRSensor::getRawLDRValue() {
-        return analogRead(_LDRpin);
-    }
-    
-    float LDRSensor::getLDRPercentage() {
-        int rawLDR = getRawLDRValue();
-        float brightness =  map(rawLDR, 0, 1023, 100, 0);
-        return brightness;
-    }
+
+// Function to get the raw sensor value
+int LDRSensor::getRawLDRValue()
+{
+    return analogRead(_LDRpin);
+}
+
+// Function to convert raw sensor value to lux
+float LDRSensor::getLDRLux()
+{
+    int rawLDR = getRawLDRValue();
+
+    // Calibrate the LDR sensor based on your specific environment
+    // These values (0.0 and 1000.0) should be adjusted based on your calibration
+    float lux = map(rawLDR, 1023, 0, 0.0, 1000.0);
+
+    return lux;
+}

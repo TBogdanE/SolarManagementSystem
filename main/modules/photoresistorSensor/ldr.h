@@ -6,7 +6,7 @@ class LDRSensor
 public:
     LDRSensor(int LDRpin);
     int getRawLDRValue();
-    float getLDRPercentage();
+    float getLDRLux();
 
 private:
     int _LDRpin;
